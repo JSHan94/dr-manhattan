@@ -2,28 +2,25 @@
 Dr. Manhattan: CCXT-style unified API for prediction markets
 """
 
-from .base.exchange import Exchange
 from .base.errors import (
+    AuthenticationError,
     DrManhattanError,
     ExchangeError,
-    NetworkError,
-    RateLimitError,
-    AuthenticationError,
     InsufficientFunds,
     InvalidOrder,
-    MarketNotFound
+    MarketNotFound,
+    NetworkError,
+    RateLimitError,
 )
-from .base.order_tracker import OrderTracker, OrderEvent, create_fill_logger
-
+from .base.exchange import Exchange
+from .base.order_tracker import OrderEvent, OrderTracker, create_fill_logger
+from .exchanges.limitless import Limitless
+from .exchanges.polymarket import Polymarket
 from .models.market import Market
 from .models.order import Order, OrderSide, OrderStatus
 from .models.position import Position
 
-from .exchanges.polymarket import Polymarket
-from .exchanges.limitless import Limitless
-
-
-__version__ = "0.1.0"
+__version__ = "0.0.1"
 
 __all__ = [
     "Exchange",
