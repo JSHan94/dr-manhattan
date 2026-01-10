@@ -120,7 +120,7 @@ class Strategy(ABC):
             return False
 
         self.outcome_tokens = [
-            OutcomeToken(outcome=outcome, token_id=token_id)
+            OutcomeToken(market_id=self.market_id, outcome=outcome, token_id=token_id)
             for outcome, token_id in zip(outcomes, token_ids)
         ]
 
@@ -144,8 +144,10 @@ class Strategy(ABC):
 
         try:
             balance = self.client.fetch_balance()
-            usdc = balance.get("USDC", 0.0)
-            logger.info(f"Balance: {Colors.green(f'${usdc:,.2f}')} USDC")
+            # Support both USDC and USDT
+            amount = balance.get("USDC", 0.0) or balance.get("USDT", 0.0)
+            symbol = "USDC" if balance.get("USDC") else "USDT"
+            logger.info(f"Balance: {Colors.green(f'${amount:,.2f}')} {symbol}")
         except Exception as e:
             logger.warning(f"Failed to fetch balance: {e}")
 
@@ -159,7 +161,16 @@ class Strategy(ABC):
         )
 
         for i, ot in enumerate(self.outcome_tokens):
+            # Try market.prices first, fallback to orderbook mid price
             price = self.market.prices.get(ot.outcome, 0)
+            if price == 0 and ot.token_id:
+                best_bid, best_ask = self.get_best_bid_ask(ot.token_id)
+                if best_bid and best_ask:
+                    price = (best_bid + best_ask) / 2
+                elif best_bid:
+                    price = best_bid
+                elif best_ask:
+                    price = best_ask
             outcome_display = ot.outcome[:30] + "..." if len(ot.outcome) > 30 else ot.outcome
             logger.info(
                 f"  [{i}] {Colors.magenta(outcome_display)}: {Colors.yellow(f'{price:.4f}')}"
