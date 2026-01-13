@@ -75,21 +75,19 @@ def fetch_closed_markets(
     
     print(f"Fetching closed markets (pattern: {pattern_name})...")
     
-    # 102175 is the tag ID for "Crypto > 1h" which contains most Up/Down markets
-    # We fetch a larger batch to filter relevant ones
-    url = "https://gamma-api.polymarket.com/markets"
-    params = {
-        "tag_id": "102175", 
-        "limit": str(max(limit * 5, 200)),
-        "closed": "true"
-    }
-    
+    # Fetch recently closed markets via Polymarket client (so we don't rely on the 1h tag).
+    # Pull a larger batch sorted by endDate desc, then filter 15m windows client-side.
     try:
-        resp = requests.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        raw_data = resp.json()
+        raw_markets = exchange.search_markets(
+            limit=max(limit * 3, 200),
+            order="endDate",
+            ascending=False,
+            closed=True,
+            categories=["crypto"],
+        )
+        raw_data = [m.to_dict() for m in raw_markets]
     except Exception as e:
-        print(f"! Error fetching from Gamma API: {e}")
+        print(f"! Error fetching closed markets: {e}")
         return []
 
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=min_minutes_since_close)

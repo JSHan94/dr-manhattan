@@ -16,6 +16,13 @@ MIN_MINUTES_TO_CLOSE = 2
 REFRESH_MARKETS_INTERVAL = 60
 POLL_INTERVAL = 3
 
+# Detect 15-minute "Bitcoin Up or Down" windows (e.g., 1:15 PM - 1:30 PM)
+FIFTEEN_MIN_RANGE_PATTERN = re.compile(
+    r"(?P<start_hour>\d{1,2}):(?P<start_min>\d{2})\s*(?P<start_ampm>[AP]M)\s*-\s*"
+    r"(?P<end_hour>\d{1,2}):(?P<end_min>\d{2})\s*(?P<end_ampm>[AP]M)",
+    re.IGNORECASE,
+)
+
 active_positions: Dict[str, Set[str]] = {}
 
 def main():
@@ -85,6 +92,18 @@ def main():
             print(f"\n! Error in main loop: {e}")
             time.sleep(5)
 
+def is_15m_market(question: str) -> bool:
+    """Return True if market question looks like a 15-minute window."""
+    if not question:
+        return False
+    m = FIFTEEN_MIN_RANGE_PATTERN.search(question)
+    if not m:
+        return False
+    start_min = int(m.group("start_min"))
+    end_min = int(m.group("end_min"))
+    return (start_min, end_min) in {(0, 15), (15, 30), (30, 45), (45, 0)}
+
+
 def find_open_btc_markets(exchange: Polymarket, args) -> List[Market]:
     valid_markets = []
     now_utc = datetime.now(timezone.utc)
@@ -122,31 +141,16 @@ def find_open_btc_markets(exchange: Polymarket, args) -> List[Market]:
                 if "bitcoin up or down" not in m.question.lower():
                     continue
 
+                # Hard filter: only keep true 15-minute windows; drop 1h markets
+                if not is_15m_market(m.question):
+                    continue
+
                 mins_left = (m.close_time - now_utc).total_seconds() / 60
                 
                 # Check active logic
-                match = time_pattern.search(m.question)
-                is_future = False
-                if match:
-                    try:
-                        is_15m = "15" in m.question or re.search(r'\d{1,2}:\d{2}-\d{1,2}:\d{2}', m.question)
-                        is_1h = "Candle" in m.question
-                        
-                        start_time = None
-                        if is_1h:
-                            start_time = m.close_time - timedelta(minutes=60)
-                        elif match:
-                            start_time = m.close_time - timedelta(minutes=20)
-                        else:
-                            # 1 hour fallback
-                            start_time = m.close_time - timedelta(minutes=60)
-
-                        if now_utc < start_time:
-                             is_future = True
-                    except:
-                        pass
-                
-                if is_future:
+                # 15m window starts ~20 minutes before close; skip if not yet started
+                start_time = m.close_time - timedelta(minutes=20)
+                if now_utc < start_time:
                     continue
 
                 if mins_left < MIN_MINUTES_TO_CLOSE:
