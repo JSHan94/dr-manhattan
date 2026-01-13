@@ -6,7 +6,7 @@ We are building an automated trading bot (`examples/btc_momentum_trader.py`) tha
 ## Current Status (2026-01-13)
 - **Script**: `examples/btc_momentum_trader.py`
 - **Functionality**:
-  - Automatically finds "Bitcoin Up or Down" 15min/1h markets.
+  - Automatically finds "Bitcoin Up or Down" 15min markets (1h filtering removed).
   - Configurable parameters (Bet size, Momemtum thresholds).
   - Dry Run mode (Default) & Live mode (`--live`).
 - **Recent Fixes**:
@@ -43,4 +43,12 @@ uv run python -u examples/btc_momentum_trader.py --debug
 
 # Live mode
 uv run python -u examples/btc_momentum_trader.py --live --amount 10
+
+## Backtest (15m)
+- **Real 15m data (preferred):**  
+  `uv run python examples/bitcoin_up_or_down_history.py --limit 200 --min-close 5 --pattern 15min --save-graph examples/backtest_results_15m.png`  
+  _Current status (2026-01-13): Polymarket API returns **0** matching 15m “Bitcoin Up or Down” markets, so this command will print “No matching markets found.”_
+- **Smoke-test with sample data:**  
+  `uv run python examples/bitcoin_up_or_down_history.py --test --save-graph examples/backtest_results_test.png`  
+  Generates tables in stdout and saves a graph at `examples/backtest_results_test.png`, confirming the pipeline works while waiting for fresh 15m market data.
 ```
